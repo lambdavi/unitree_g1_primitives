@@ -15,7 +15,7 @@ High-level motion primitives for the Unitree G1 humanoid robot. This package pro
 
 ```bash
 # First, install pinocchio with conda
-conda install pinocchio
+ conda install conda-forge::pinocchio
 
 # Clone and install the package
 git clone https://github.com/davidebuoso/g1-primitives.git
@@ -29,7 +29,7 @@ For development with testing and linting tools:
 
 ```bash
 # First, install pinocchio with conda
-conda install pinocchio
+ conda install conda-forge::pinocchio
 
 # Then install the package with dev dependencies
 pip install -e .[dev]
@@ -39,7 +39,7 @@ pip install -e .[dev]
 
 ```bash
 # First, install pinocchio with conda
-conda install pinocchio
+ conda install conda-forge::pinocchio
 
 # Then install the package
 pip install g1-primitives
@@ -57,14 +57,9 @@ pip install g1-primitives
 Pinocchio must be installed using conda, not pip:
 
 ```bash
-conda install pinocchio
+ conda install conda-forge::pinocchio
 ```
 
-Or if you need a specific version:
-
-```bash
-conda install pinocchio=2.6.0
-```
 
 ## Quick Start
 
@@ -262,7 +257,7 @@ python examples/basic_usage.py
 
 ```bash
 # Complete installation in 2 commands:
-conda install pinocchio
+conda install conda-forge::pinocchio
 pip install -e .
 ```
 
