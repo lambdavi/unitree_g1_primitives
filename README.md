@@ -5,6 +5,7 @@ High-level motion primitives for the Unitree G1 humanoid robot. This package pro
 ## Features
 
 - **GRAB**: Smooth hand grasping motion with interpolated joint positions
+- **RELEASE**: Instantly open a hand and maintain the state for a short duration
 - **HOLD_POSITION**: Maintain current arm and hand positions for specified duration
 - **DUAL_ARM_MOVEMENT**: Move both hands simultaneously with independent wrist rotations
   (Single-hand moves are handled by the dual API by passing only one hand's target)
@@ -153,6 +154,18 @@ Hold current arm and hand positions for specified duration.
 - `bool`: True when motion is complete
 
 ##### dual_arm_movement(left_hand_pos=None, right_hand_pos=None, left_hand_pos_delta=None, right_hand_pos_delta=None, left_angle_deg=0.0, right_angle_deg=0.0, duration=3.0, verbose=False)
+##### release(hand='right', duration=0.5, verbose=False)
+
+Open the specified hand immediately and maintain the state for the given duration.
+
+**Parameters:**
+- `hand` (str): 'left' or 'right' hand to open
+- `duration` (float): How long to maintain the open state (seconds)
+- `verbose` (bool): Whether to print progress information
+
+**Returns:**
+- `bool`: True when motion is complete
+
 
 Smoothly move both hands to positions and tilt their wrists by given angles.
 
