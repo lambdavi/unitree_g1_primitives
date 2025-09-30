@@ -1,0 +1,12 @@
+# Core dependencies for G1 Primitives
+# Note: pinocchio should be installed with conda, not pip
+numpy>=1.20.0
+scipy>=1.7.0
+
+# Development dependencies (optional)
+# Install with: pip install -e .[dev]
+# pytest>=6.0
+# pytest-cov
+# black
+# flake8
+# mypy

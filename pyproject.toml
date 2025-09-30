@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "g1_primitives"
+version = "1.0.0"
+description = "High-level motion primitives for Unitree G1 humanoid robot"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Davide Buoso", email = "davide.buoso@polito.it"}
+]
+maintainers = [
+    {name = "Davide Buoso", email = "davide.buoso@polito.it"}
+]
+keywords = ["robotics", "unitree", "g1", "humanoid", "motion-primitives"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Robotics",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    # Note: pinocchio should be installed with conda: conda install pinocchio
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+
+[project.urls]
+Homepage = "https://github.com/davidebuoso/g1-primitives"
+Repository = "https://github.com/davidebuoso/g1-primitives.git"
+Documentation = "https://github.com/davidebuoso/g1-primitives#readme"
+"Bug Tracker" = "https://github.com/davidebuoso/g1-primitives/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["g1_primitives*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
