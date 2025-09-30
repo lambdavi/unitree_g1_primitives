@@ -6,8 +6,8 @@ High-level motion primitives for the Unitree G1 humanoid robot. This package pro
 
 - **GRAB_SMOOTH**: Smooth hand grasping motion with interpolated joint positions
 - **HOLD_POSITION**: Maintain current arm and hand positions for specified duration
-- **MOVE_AND_TILT_SMOOTH**: Move single hand to target position with wrist rotation
 - **MOVE_AND_TILT_DUAL_SMOOTH**: Move both hands simultaneously with independent wrist rotations
+  (Single-hand moves are handled by the dual API by passing only one hand's target)
 
 ## Installation
 
@@ -86,7 +86,6 @@ wrist_positions = {
     'right': pin.SE3(pin.Quaternion(1, 0, 0, 0), np.array([0.25, -0.15, 0.1]))
 }
 last_hand_sol_tauff = np.zeros(14)
-tilted_status = {'left': [False, 0.0], 'right': [False, 0.0]}
 hand_state = {'left': 'open', 'right': 'open'}
 
 # Initialize the primitives controller
@@ -98,16 +97,14 @@ primitives = G1Primitives(
     right_hand_array=right_hand_array,
     wrist_positions=wrist_positions,
     last_hand_sol_tauff=last_hand_sol_tauff,
-    tilted_status=tilted_status,
     hand_state=hand_state
 )
 
 # Use the primitives
 primitives.grab_smooth(hand='left', duration=2.0)
-primitives.move_and_tilt_smooth(
-    hand='right', 
-    position=[0.3, -0.2, 0.15], 
-    angle_deg=-90.0, 
+primitives.move_and_tilt_dual_smooth(
+    right_hand_pos=[0.3, -0.2, 0.15],
+    right_angle_deg=-90.0,
     duration=3.0
 )
 primitives.hold_position(duration=1.0)
@@ -122,7 +119,7 @@ The main class that provides motion primitives for the G1 robot.
 #### Constructor
 
 ```python
-G1Primitives(arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array, wrist_positions, last_hand_sol_tauff, tilted_status, hand_state)
+G1Primitives(arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array, wrist_positions, last_hand_sol_tauff, hand_state)
 ```
 
 **Parameters:**
@@ -133,7 +130,6 @@ G1Primitives(arm_controller, hand_controller, ik_solver, left_hand_array, right_
 - `right_hand_array`: Multiprocessing Array for right hand joint positions (7 elements)
 - `wrist_positions`: Dict with current left/right wrist SE3 poses
 - `last_hand_sol_tauff`: Last computed joint torques (14 elements)
-- `tilted_status`: Dict tracking tilt status for each hand
 - `hand_state`: Dict tracking open/closed state for each hand
 
 #### Methods
@@ -156,20 +152,6 @@ Hold current arm and hand positions for specified duration.
 
 **Parameters:**
 - `duration` (float): Duration to hold position in seconds
-- `verbose` (bool): Whether to print progress information
-
-**Returns:**
-- `bool`: True when motion is complete
-
-##### move_and_tilt_smooth(hand='right', position=None, angle_deg=0.0, duration=3.0, verbose=False)
-
-Smoothly move the selected hand to a position and tilt the wrist by angle_deg.
-
-**Parameters:**
-- `hand` (str): 'left' or 'right' hand to move
-- `position` (List[float], optional): Target position [x, y, z] in meters. If None, uses current position.
-- `angle_deg` (float): Wrist rotation angle in degrees (positive = inward roll, negative = outward)
-- `duration` (float): Duration of the motion in seconds
 - `verbose` (bool): Whether to print progress information
 
 **Returns:**
@@ -200,11 +182,10 @@ Smoothly move both hands to positions and tilt their wrists by given angles.
 # Grasp with left hand
 primitives.grab_smooth(hand='left', duration=2.0)
 
-# Move to pouring position
-primitives.move_and_tilt_smooth(
-    hand='left',
-    position=[0.3, 0.1, 0.2],
-    angle_deg=90.0,
+# Move to pouring position (single-hand via dual API)
+primitives.move_and_tilt_dual_smooth(
+    left_hand_pos=[0.3, 0.1, 0.2],
+    left_angle_deg=90.0,
     duration=3.0
 )
 
