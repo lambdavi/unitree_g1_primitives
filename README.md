@@ -4,9 +4,9 @@ High-level motion primitives for the Unitree G1 humanoid robot. This package pro
 
 ## Features
 
-- **GRAB_SMOOTH**: Smooth hand grasping motion with interpolated joint positions
+- **GRAB**: Smooth hand grasping motion with interpolated joint positions
 - **HOLD_POSITION**: Maintain current arm and hand positions for specified duration
-- **MOVE_AND_TILT_DUAL_SMOOTH**: Move both hands simultaneously with independent wrist rotations
+- **DUAL_ARM_MOVEMENT**: Move both hands simultaneously with independent wrist rotations
   (Single-hand moves are handled by the dual API by passing only one hand's target)
 
 ## Installation
@@ -18,7 +18,7 @@ High-level motion primitives for the Unitree G1 humanoid robot. This package pro
  conda install conda-forge::pinocchio
 
 # Clone and install the package
-git clone https://github.com/davidebuoso/g1-primitives.git
+git clone https://github.com/lambdavi/g1-primitives.git
 cd g1-primitives
 pip install -e .
 ```
@@ -96,8 +96,8 @@ primitives = G1Primitives(
 )
 
 # Use the primitives
-primitives.grab_smooth(hand='left', duration=2.0)
-primitives.move_and_tilt_dual_smooth(
+primitives.grab(hand='left', duration=2.0)
+primitives.dual_arm_movement(
     right_hand_pos=[0.3, -0.2, 0.15],
     right_angle_deg=-90.0,
     duration=3.0
@@ -129,7 +129,7 @@ G1Primitives(arm_controller, hand_controller, ik_solver, left_hand_array, right_
 
 #### Methods
 
-##### grab_smooth(hand='right', duration=2.0, verbose=False)
+##### grab(hand='right', duration=2.0, verbose=False)
 
 Smoothly close the specified hand with interpolated joint positions.
 
@@ -152,7 +152,7 @@ Hold current arm and hand positions for specified duration.
 **Returns:**
 - `bool`: True when motion is complete
 
-##### move_and_tilt_dual_smooth(left_hand_pos=None, right_hand_pos=None, left_hand_pos_delta=None, right_hand_pos_delta=None, left_angle_deg=0.0, right_angle_deg=0.0, duration=3.0, verbose=False)
+##### dual_arm_movement(left_hand_pos=None, right_hand_pos=None, left_hand_pos_delta=None, right_hand_pos_delta=None, left_angle_deg=0.0, right_angle_deg=0.0, duration=3.0, verbose=False)
 
 Smoothly move both hands to positions and tilt their wrists by given angles.
 
@@ -175,10 +175,10 @@ Smoothly move both hands to positions and tilt their wrists by given angles.
 
 ```python
 # Grasp with left hand
-primitives.grab_smooth(hand='left', duration=2.0)
+primitives.grab(hand='left', duration=2.0)
 
 # Move to pouring position (single-hand via dual API)
-primitives.move_and_tilt_dual_smooth(
+primitives.dual_arm_movement(
     left_hand_pos=[0.3, 0.1, 0.2],
     left_angle_deg=90.0,
     duration=3.0
@@ -192,7 +192,7 @@ primitives.hold_position(duration=5.0)
 
 ```python
 # Move both hands simultaneously
-primitives.move_and_tilt_dual_smooth(
+primitives.dual_arm_movement(
     left_hand_pos=[0.3, 0.15, 0.2],
     right_hand_pos=[0.3, -0.15, 0.2],
     left_angle_deg=45.0,
@@ -201,15 +201,15 @@ primitives.move_and_tilt_dual_smooth(
 )
 
 # Grasp with both hands
-primitives.grab_smooth(hand='left', duration=1.5)
-primitives.grab_smooth(hand='right', duration=1.5)
+primitives.grab(hand='left', duration=1.5)
+primitives.grab(hand='right', duration=1.5)
 ```
 
 ### Delta Movements
 
 ```python
 # Move relative to current position
-primitives.move_and_tilt_dual_smooth(
+primitives.dual_arm_movement(
     left_hand_pos_delta=[0.05, 0.0, -0.02],
     right_hand_pos_delta=[0.05, 0.0, -0.02],
     left_angle_deg=0.0,
@@ -217,79 +217,3 @@ primitives.move_and_tilt_dual_smooth(
     duration=2.0
 )
 ```
-
-## Integration with Existing Code
-
-This package is designed to work with your existing G1 robot control setup. You'll need to:
-
-1. Keep your existing robot controllers (G1_29_ArmController, Dex3_1_Controller, G1_29_ArmIK)
-2. Pass the necessary objects to the G1Primitives constructor
-3. Maintain the wrist_positions, hand_state, and other state variables
-4. Update these state variables after each primitive execution
-
-## Development
-
-### Running Tests
-
-```bash
-pip install -e .[dev]
-pytest
-```
-
-### Code Formatting
-
-```bash
-black g1_primitives/
-flake8 g1_primitives/
-```
-
-### Running Examples
-
-```bash
-# Make sure the package is installed
-pip install -e .
-
-# Run the basic usage example
-python examples/basic_usage.py
-```
-
-### Easy Installation Commands
-
-```bash
-# Complete installation in 2 commands:
-conda install conda-forge::pinocchio
-pip install -e .
-```
-
-### Package Structure
-
-```
-g1_primitives/
-├── g1_primitives/          # Main package
-│   ├── __init__.py        # Package initialization
-│   ├── primitives.py      # Core motion primitives
-│   └── types.py          # Type definitions
-├── examples/              # Usage examples
-│   ├── __init__.py
-│   └── basic_usage.py
-├── tests/                 # Test suite
-│   ├── __init__.py
-│   └── test_primitives.py
-├── pyproject.toml        # Modern Python packaging configuration
-├── requirements.txt      # Dependencies
-├── README.md            # This file
-├── INSTALL.md           # Installation guide
-└── LICENSE              # MIT License
-```
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For questions and support, please open an issue on GitHub.

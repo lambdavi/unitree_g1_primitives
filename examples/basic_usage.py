@@ -50,7 +50,6 @@ def setup_robot_controllers():
     
     # Initialize state tracking
     last_hand_sol_tauff = np.zeros(14)
-    tilted_status = {'left': [False, 0.0], 'right': [False, 0.0]}
     hand_state = {'left': 'open', 'right': 'open'}
     
     # For this example, we'll create mock objects
@@ -74,7 +73,7 @@ def setup_robot_controllers():
     hand_controller = None  # Mock hand controller
     
     return (arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array,
-            wrist_positions, last_hand_sol_tauff, tilted_status, hand_state)
+            wrist_positions, last_hand_sol_tauff, hand_state)
 
 
 def example_basic_grasping():
@@ -83,7 +82,7 @@ def example_basic_grasping():
     
     # Set up robot (replace with your actual setup)
     (arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array,
-     wrist_positions, last_hand_sol_tauff, tilted_status, hand_state) = setup_robot_controllers()
+     wrist_positions, last_hand_sol_tauff, hand_state) = setup_robot_controllers()
     
     # Initialize primitives
     primitives = G1Primitives(
@@ -94,21 +93,19 @@ def example_basic_grasping():
         right_hand_array=right_hand_array,
         wrist_positions=wrist_positions,
         last_hand_sol_tauff=last_hand_sol_tauff,
-        tilted_status=tilted_status,
         hand_state=hand_state
     )
     
     print("1. Grasping with left hand...")
-    primitives.grab_smooth(hand='left', duration=1.0, verbose=True)
+    primitives.grab(hand='left', duration=1.0, verbose=True)
     
     print("2. Holding position...")
     primitives.hold_position(duration=0.5, verbose=True)
     
     print("3. Moving to new position with tilt...")
-    primitives.move_and_tilt_smooth(
-        hand='left',
-        position=[0.3, 0.1, 0.15],
-        angle_deg=45.0,
+    primitives.dual_arm_movement(
+        left_hand_pos=[0.3, 0.1, 0.15],
+        left_angle_deg=45.0,
         duration=1.0,
         verbose=True
     )
@@ -122,7 +119,7 @@ def example_dual_arm_coordination():
     
     # Set up robot (replace with your actual setup)
     (arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array,
-     wrist_positions, last_hand_sol_tauff, tilted_status, hand_state) = setup_robot_controllers()
+     wrist_positions, last_hand_sol_tauff, hand_state) = setup_robot_controllers()
     
     # Initialize primitives
     primitives = G1Primitives(
@@ -133,12 +130,11 @@ def example_dual_arm_coordination():
         right_hand_array=right_hand_array,
         wrist_positions=wrist_positions,
         last_hand_sol_tauff=last_hand_sol_tauff,
-        tilted_status=tilted_status,
         hand_state=hand_state
     )
     
     print("1. Moving both hands to initial positions...")
-    primitives.move_and_tilt_dual_smooth(
+    primitives.dual_arm_movement(
         left_hand_pos=[0.3, 0.2, 0.15],
         right_hand_pos=[0.3, -0.2, 0.15],
         left_angle_deg=0.0,
@@ -148,7 +144,7 @@ def example_dual_arm_coordination():
     )
     
     print("2. Tilting both hands...")
-    primitives.move_and_tilt_dual_smooth(
+    primitives.dual_arm_movement(
         left_hand_pos_delta=[0.0, 0.0, 0.0],  # No position change
         right_hand_pos_delta=[0.0, 0.0, 0.0],  # No position change
         left_angle_deg=60.0,
@@ -158,8 +154,8 @@ def example_dual_arm_coordination():
     )
     
     print("3. Grasping with both hands...")
-    primitives.grab_smooth(hand='left', duration=0.5, verbose=True)
-    primitives.grab_smooth(hand='right', duration=0.5, verbose=True)
+    primitives.grab(hand='left', duration=0.5, verbose=True)
+    primitives.grab(hand='right', duration=0.5, verbose=True)
     
     print("4. Final hold...")
     primitives.hold_position(duration=0.5, verbose=True)
@@ -167,13 +163,13 @@ def example_dual_arm_coordination():
     print("Dual-arm coordination example completed!")
 
 
-def example_pouring_sequence():
-    """Example: Pouring sequence with visual feedback integration."""
-    print("\n=== Pouring Sequence Example ===")
+def example_pick_and_place():
+    """Example: Pick-and-place sequence using left hand."""
+    print("\n=== Pick-and-Place Example ===")
     
     # Set up robot (replace with your actual setup)
     (arm_controller, hand_controller, ik_solver, left_hand_array, right_hand_array,
-     wrist_positions, last_hand_sol_tauff, tilted_status, hand_state) = setup_robot_controllers()
+     wrist_positions, last_hand_sol_tauff, hand_state) = setup_robot_controllers()
     
     # Initialize primitives
     primitives = G1Primitives(
@@ -184,55 +180,72 @@ def example_pouring_sequence():
         right_hand_array=right_hand_array,
         wrist_positions=wrist_positions,
         last_hand_sol_tauff=last_hand_sol_tauff,
-        tilted_status=tilted_status,
         hand_state=hand_state
     )
     
-    # Bottle and cup positions (would come from your perception system)
-    bottle_pos = [0.25, 0.1, 0.05]
-    cup_pos = [0.25, -0.1, 0.08]
+    # Pick and place target positions (example coordinates)
+    pick_pos = [0.30, 0.12, 0.05]
+    place_pos = [0.40, -0.10, 0.06]
+    approach_offset = 0.10  # Lift/approach offset in meters
     
-    print("1. Grasping bottle...")
-    primitives.grab_smooth(hand='left', duration=1.0, verbose=True)
+    # Ensure hand starts open
+    hand_state['left'] = 'open'
     
-    print("2. Moving to pre-pour position...")
-    primitives.move_and_tilt_smooth(
-        hand='left',
-        position=[cup_pos[0] + 0.05, cup_pos[1], cup_pos[2] + 0.05],
-        angle_deg=0.0,
+    print("1. Move above pick position (pre-grasp)...")
+    primitives.dual_arm_movement(
+        left_hand_pos=[pick_pos[0], pick_pos[1], pick_pos[2] + approach_offset],
+        left_angle_deg=0.0,
         duration=1.0,
         verbose=True
     )
     
-    print("3. Tilting to pour...")
-    primitives.move_and_tilt_smooth(
-        hand='left',
-        angle_deg=90.0,  # Pour angle
-        duration=1.0,
+    print("2. Move down to pick...")
+    primitives.dual_arm_movement(
+        left_hand_pos=pick_pos,
+        left_angle_deg=0.0,
+        duration=0.8,
         verbose=True
     )
     
-    print("4. Pouring (holding position)...")
-    primitives.hold_position(duration=2.0, verbose=True)
+    print("3. Close hand to grasp...")
+    primitives.grab(hand='left', duration=0.8, verbose=True)
     
-    print("5. Returning to upright position...")
-    primitives.move_and_tilt_smooth(
-        hand='left',
-        angle_deg=0.0,
-        duration=1.0,
+    print("4. Lift object...")
+    primitives.dual_arm_movement(
+        left_hand_pos=[pick_pos[0], pick_pos[1], pick_pos[2] + approach_offset],
+        left_angle_deg=0.0,
+        duration=0.8,
         verbose=True
     )
     
-    print("6. Moving back to bottle position...")
-    primitives.move_and_tilt_smooth(
-        hand='left',
-        position=bottle_pos,
-        angle_deg=0.0,
-        duration=1.0,
+    print("5. Move above place position...")
+    primitives.dual_arm_movement(
+        left_hand_pos=[place_pos[0], place_pos[1], place_pos[2] + approach_offset],
+        left_angle_deg=0.0,
+        duration=1.2,
         verbose=True
     )
     
-    print("Pouring sequence example completed!")
+    print("6. Move down to place...")
+    primitives.dual_arm_movement(
+        left_hand_pos=place_pos,
+        left_angle_deg=0.0,
+        duration=0.8,
+        verbose=True
+    )
+    
+    print("7. Open hand to release...")
+    primitives.release(hand='left', duration=0.3, verbose=True)
+    
+    print("8. Retract up from place position...")
+    primitives.dual_arm_movement(
+        left_hand_pos=[place_pos[0], place_pos[1], place_pos[2] + approach_offset],
+        left_angle_deg=0.0,
+        duration=0.8,
+        verbose=True
+    )
+    
+    print("Pick-and-place sequence completed!")
 
 
 if __name__ == "__main__":
@@ -243,7 +256,7 @@ if __name__ == "__main__":
         # Run examples
         example_basic_grasping()
         example_dual_arm_coordination()
-        example_pouring_sequence()
+        example_pick_and_place()
         
         print("\n" + "=" * 50)
         print("All examples completed successfully!")

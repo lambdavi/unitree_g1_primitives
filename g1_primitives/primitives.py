@@ -14,8 +14,10 @@ from multiprocessing import Array
 try:
     import pinocchio as pin
     HAS_PINOCCHIO = True
+    print("Pinocchio imported successfully")
 except ImportError:
     HAS_PINOCCHIO = False
+    print("Pinocchio not imported")
     # Create a simple mock for SE3 and Quaternion if pinocchio is not available
     class MockSE3:
         def __init__(self, rotation=None, translation=None):
@@ -130,7 +132,7 @@ class G1Primitives:
             else:
                 break
     
-    def grab_smooth(self, hand: str = 'right', duration: float = 2.0, verbose: bool = False):
+    def grab(self, hand: str = 'right', duration: float = 2.0, verbose: bool = False):
         """
         Smoothly close the specified hand with interpolated joint positions.
         
@@ -143,7 +145,7 @@ class G1Primitives:
             bool: True when motion is complete
         """
         if verbose:
-            print(f"[GRAB_SMOOTH] Starting smooth grab with {hand} hand for {duration}s")
+            print(f"[GRAB] Starting grab with {hand} hand for {duration}s")
         
         closed_pos = self.closed_pos[hand]
         rate_hz = 50
@@ -168,7 +170,7 @@ class G1Primitives:
         for i, q in enumerate(traj):
             arr[:] = q
             if verbose and i % 10 == 0:
-                print(f"[GRAB_SMOOTH] Step {i}/{n_steps}, q: {q}")
+                print(f"[GRAB] Step {i}/{n_steps}, q: {q}")
             time.sleep(period)
         
         self.hand_state[hand] = 'closed'
@@ -182,7 +184,7 @@ class G1Primitives:
             time.sleep(0.01)
         
         if verbose:
-            print(f"[GRAB_SMOOTH] Completed closing {hand} hand")
+            print(f"[GRAB] Completed closing {hand} hand")
         return True
     
     def hold_position(self, duration: float = 1.0, verbose: bool = False):
@@ -213,9 +215,50 @@ class G1Primitives:
         if verbose:
             print(f"[HOLD_POSITION] Completed holding position")
         return True
+
+    def release(self, hand: str = 'right', duration: float = 0.5, verbose: bool = False):
+        """
+        Immediately open the specified hand and maintain the state for the duration.
+        
+        Args:
+            hand: 'left' or 'right' hand to open
+            duration: How long to maintain the open state (seconds)
+            verbose: Whether to print progress information
+            
+        Returns:
+            bool: True when motion is complete
+        """
+        if verbose:
+            print(f"[RELEASE] Opening {hand} hand and holding for {duration}s")
+
+        # Open immediately
+        if hand == 'left':
+            with self.left_hand_array.get_lock():
+                self.left_hand_array[:] = self.open_pos['left']
+        else:
+            with self.right_hand_array.get_lock():
+                self.right_hand_array[:] = self.open_pos['right']
+        self.hand_state[hand] = 'open'
+
+        # Maintain arm and hand state for the given duration
+        start_time = time.time()
+        while time.time() - start_time < max(0.0, float(duration)):
+            arm_q = self.arm_controller.get_current_dual_arm_q()
+            self.arm_controller.ctrl_dual_arm(arm_q, self.last_hand_sol_tauff)
+            with self.left_hand_array.get_lock():
+                self.left_hand_array[:] = self.closed_pos['left'] if self.hand_state['left'] == 'closed' else self.open_pos['left']
+            with self.right_hand_array.get_lock():
+                self.right_hand_array[:] = self.closed_pos['right'] if self.hand_state['right'] == 'closed' else self.open_pos['right']
+            time.sleep(0.01)
+
+        if verbose:
+            print(f"[RELEASE] Completed opening {hand} hand")
+        return True
+
+    # release_smooth removed; use release()
     
     
-    def move_and_tilt_dual_smooth(self,
+    def dual_arm_movement(self,
                                 left_hand_pos: Optional[List[float]] = None,
                                 right_hand_pos: Optional[List[float]] = None,
                                 left_hand_pos_delta: Optional[List[float]] = None,
@@ -241,7 +284,7 @@ class G1Primitives:
             bool: True when motion is complete
         """
         if verbose:
-            print(f"[MOVE_AND_TILT_DUAL_SMOOTH] Moving both hands with L:{left_angle_deg}° R:{right_angle_deg}° for {duration}s")
+            print(f"[DUAL_ARM_MOVEMENT] Moving both hands with L:{left_angle_deg}° R:{right_angle_deg}° for {duration}s")
         
         # Support optional deltas: if *_delta is provided and explicit position is not,
         # add delta to current wrist position
@@ -289,7 +332,7 @@ class G1Primitives:
             with self.right_hand_array.get_lock():
                 self.right_hand_array[:] = self.closed_pos['right'] if self.hand_state['right'] == 'closed' else self.open_pos['right']
             if verbose and i % 10 == 0:
-                print(f"[MOVE_AND_TILT_DUAL_SMOOTH] Step {i}/{n_steps}, q: {q}")
+                print(f"[DUAL_ARM_MOVEMENT] Step {i}/{n_steps}, q: {q}")
             time.sleep(period)
 
         # Final convergence
@@ -302,5 +345,5 @@ class G1Primitives:
         self.last_hand_sol_tauff = sol_tauff
         
         if verbose:
-            print(f"[MOVE_AND_TILT_DUAL_SMOOTH] Completed")
+            print(f"[DUAL_ARM_MOVEMENT] Completed")
         return True

@@ -9,9 +9,10 @@ from typing import Dict, Any
 
 class MotionType(Enum):
     """Enumeration of available motion primitive types."""
-    GRAB_SMOOTH = auto()
+    GRAB = auto()
+    RELEASE = auto()
     HOLD_POSITION = auto()
-    MOVE_AND_TILT_DUAL_SMOOTH = auto()
+    DUAL_ARM_MOVEMENT = auto()
 
 
 @dataclass
