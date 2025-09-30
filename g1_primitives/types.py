@@ -11,7 +11,6 @@ class MotionType(Enum):
     """Enumeration of available motion primitive types."""
     GRAB_SMOOTH = auto()
     HOLD_POSITION = auto()
-    MOVE_AND_TILT_SMOOTH = auto()
     MOVE_AND_TILT_DUAL_SMOOTH = auto()
 
 

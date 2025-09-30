@@ -38,7 +38,6 @@ class TestG1Primitives:
         
         # Initialize state tracking
         self.last_hand_sol_tauff = np.zeros(14)
-        self.tilted_status = {'left': [False, 0.0], 'right': [False, 0.0]}
         self.hand_state = {'left': 'open', 'right': 'open'}
         
         # Mock IK solver behavior
@@ -54,7 +53,6 @@ class TestG1Primitives:
             right_hand_array=self.right_hand_array,
             wrist_positions=self.wrist_positions,
             last_hand_sol_tauff=self.last_hand_sol_tauff,
-            tilted_status=self.tilted_status,
             hand_state=self.hand_state
         )
     
@@ -121,52 +119,7 @@ class TestG1Primitives:
         assert result is True
         self.mock_arm_controller.ctrl_dual_arm.assert_called()
     
-    @patch('time.sleep')
-    @patch('time.time')
-    def test_move_and_tilt_smooth_left_hand(self, mock_time, mock_sleep):
-        """Test move and tilt with left hand."""
-        # Mock time.time to return increasing values
-        mock_time.side_effect = [0.0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12]
-        
-        target_pos = [0.3, 0.2, 0.15]
-        angle_deg = 45.0
-        
-        result = self.primitives.move_and_tilt_smooth(
-            hand='left',
-            position=target_pos,
-            angle_deg=angle_deg,
-            duration=0.1,
-            verbose=False
-        )
-        
-        assert result is True
-        assert self.primitives.tilted_status['left'][0] is True  # Should be tilted
-        assert abs(self.primitives.tilted_status['left'][1] - np.deg2rad(angle_deg)) < 1e-6
-        
-        # Verify IK solver was called
-        self.mock_ik_solver.solve_ik.assert_called()
     
-    @patch('time.sleep')
-    @patch('time.time')
-    def test_move_and_tilt_smooth_right_hand(self, mock_time, mock_sleep):
-        """Test move and tilt with right hand."""
-        # Mock time.time to return increasing values
-        mock_time.side_effect = [0.0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12]
-        
-        target_pos = [0.3, -0.2, 0.15]
-        angle_deg = -45.0
-        
-        result = self.primitives.move_and_tilt_smooth(
-            hand='right',
-            position=target_pos,
-            angle_deg=angle_deg,
-            duration=0.1,
-            verbose=False
-        )
-        
-        assert result is True
-        assert self.primitives.tilted_status['right'][0] is True  # Should be tilted
-        assert abs(self.primitives.tilted_status['right'][1] - np.deg2rad(angle_deg)) < 1e-6
     
     @patch('time.sleep')
     @patch('time.time')
@@ -258,7 +211,7 @@ class TestMotionType:
         """Test that MotionType enum has expected values."""
         assert MotionType.GRAB_SMOOTH is not None
         assert MotionType.HOLD_POSITION is not None
-        assert MotionType.MOVE_AND_TILT_SMOOTH is not None
+        
         assert MotionType.MOVE_AND_TILT_DUAL_SMOOTH is not None
 
 

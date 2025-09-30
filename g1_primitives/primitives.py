@@ -61,7 +61,6 @@ class G1Primitives:
         right_hand_array: Multiprocessing Array for right hand joint positions
         wrist_positions: Dict with current left/right wrist SE3 poses (pinocchio.SE3 or compatible)
         last_hand_sol_tauff: Last computed joint torques (14 elements)
-        tilted_status: Dict tracking tilt status for each hand
         hand_state: Dict tracking open/closed state for each hand
     """
     
@@ -73,7 +72,6 @@ class G1Primitives:
                  right_hand_array: Array,
                  wrist_positions: Dict[str, pin.SE3],
                  last_hand_sol_tauff: np.ndarray,
-                 tilted_status: Dict[str, List[Union[bool, float]]],
                  hand_state: Dict[str, str]):
         """
         Initialize the G1 primitives controller.
@@ -86,7 +84,6 @@ class G1Primitives:
             right_hand_array: Multiprocessing Array for right hand (7 elements)
             wrist_positions: Dict with 'left' and 'right' SE3 poses
             last_hand_sol_tauff: Array of last computed torques (14 elements)
-            tilted_status: Dict with tilt status for each hand
             hand_state: Dict with 'open'/'closed' state for each hand
         """
         self.arm_controller = arm_controller
@@ -96,7 +93,6 @@ class G1Primitives:
         self.right_hand_array = right_hand_array
         self.wrist_positions = wrist_positions
         self.last_hand_sol_tauff = last_hand_sol_tauff
-        self.tilted_status = tilted_status
         self.hand_state = hand_state
         
         # Hand joint configurations
@@ -170,13 +166,10 @@ class G1Primitives:
         traj = np.linspace(start_pos, closed_pos, n_steps)
 
         for i, q in enumerate(traj):
-            loop_start = time.time()
             arr[:] = q
             if verbose and i % 10 == 0:
                 print(f"[GRAB_SMOOTH] Step {i}/{n_steps}, q: {q}")
-            loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, period - loop_elapsed)
-            time.sleep(sleep_time)
+            time.sleep(period)
         
         self.hand_state[hand] = 'closed'
         
@@ -221,90 +214,6 @@ class G1Primitives:
             print(f"[HOLD_POSITION] Completed holding position")
         return True
     
-    def move_and_tilt_smooth(self, 
-                           hand: str = 'right', 
-                           position: Optional[List[float]] = None,
-                           angle_deg: float = 0.0, 
-                           duration: float = 3.0,
-                           verbose: bool = False):
-        """
-        Smoothly move the selected hand to a position and tilt the wrist by angle_deg.
-        
-        Args:
-            hand: 'left' or 'right' hand to move
-            position: Target position [x, y, z] in meters. If None, uses current position.
-            angle_deg: Wrist rotation angle in degrees (positive = inward roll, negative = outward)
-            duration: Duration of the motion in seconds
-            verbose: Whether to print progress information
-            
-        Returns:
-            bool: True when motion is complete
-        """
-        if verbose:
-            print(f"[MOVE_AND_TILT_SMOOTH] Moving {hand} hand to {position} with {angle_deg}° tilt for {duration}s")
-        
-        angle_rad = np.deg2rad(angle_deg)
-
-        if hand == 'left':
-            left_target = np.array(position) if position is not None else self.wrist_positions['left'].translation
-            right_target = self.wrist_positions['right'].translation
-        else:
-            left_target = self.wrist_positions['left'].translation
-            right_target = np.array(position) if position is not None else self.wrist_positions['right'].translation
-
-        # Create quaternion for wrist rotation
-        cos_half = np.cos(angle_rad / 2.0)
-        sin_half = np.sin(angle_rad / 2.0)
-        if hand == 'left':
-            left_quat = pin.Quaternion(cos_half, sin_half, 0, 0)
-            right_quat = pin.Quaternion(1, 0, 0, 0)
-        else:
-            left_quat = pin.Quaternion(1, 0, 0, 0)
-            right_quat = pin.Quaternion(cos_half, sin_half, 0, 0)
-        
-        L_tf_target = pin.SE3(left_quat, left_target)
-        R_tf_target = pin.SE3(right_quat, right_target)
-
-        current_q = self.arm_controller.get_current_dual_arm_q()
-        current_dq = self.arm_controller.get_current_dual_arm_dq()
-        sol_q, sol_tauff = self._solve_ik_iterative(L_tf_target.homogeneous, R_tf_target.homogeneous, current_q, current_dq)
-
-        # Update tilt status for the chosen hand
-        if abs(angle_deg) > 0.1:
-            self.tilted_status[hand] = [True, angle_rad]
-        else:
-            self.tilted_status[hand] = [False, 0.0]
-
-        rate_hz = 50
-        n_steps = int(duration * rate_hz)
-        q_traj = np.linspace(current_q, sol_q, n_steps)
-        period = 1.0 / rate_hz
-
-        for i, q in enumerate(q_traj):
-            loop_start = time.time()
-            self.arm_controller.ctrl_dual_arm(q, sol_tauff)
-            with self.left_hand_array.get_lock():
-                self.left_hand_array[:] = self.closed_pos['left'] if self.hand_state['left'] == 'closed' else self.open_pos['left']
-            with self.right_hand_array.get_lock():
-                self.right_hand_array[:] = self.closed_pos['right'] if self.hand_state['right'] == 'closed' else self.open_pos['right']
-            if verbose and i % 10 == 0:
-                print(f"[MOVE_AND_TILT_SMOOTH] Step {i}/{n_steps}, q: {q}")
-            loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, period - loop_elapsed)
-            time.sleep(sleep_time)
-
-        # Final convergence
-        thresh = 0.3 if self.tilted_status['right'][0] or self.tilted_status['left'][0] else 0.2
-        self._send_commands_to_arms(sol_q, sol_tauff, thresh)
-
-        # Update stored wrist positions
-        self.wrist_positions['left'] = L_tf_target
-        self.wrist_positions['right'] = R_tf_target
-        self.last_hand_sol_tauff = sol_tauff
-        
-        if verbose:
-            print(f"[MOVE_AND_TILT_SMOOTH] Completed. Tilt status: {self.tilted_status}")
-        return True
     
     def move_and_tilt_dual_smooth(self,
                                 left_hand_pos: Optional[List[float]] = None,
@@ -374,7 +283,6 @@ class G1Primitives:
         period = 1.0 / rate_hz
 
         for i, q in enumerate(q_traj):
-            loop_start = time.time()
             self.arm_controller.ctrl_dual_arm(q, sol_tauff)
             with self.left_hand_array.get_lock():
                 self.left_hand_array[:] = self.closed_pos['left'] if self.hand_state['left'] == 'closed' else self.open_pos['left']
@@ -382,9 +290,7 @@ class G1Primitives:
                 self.right_hand_array[:] = self.closed_pos['right'] if self.hand_state['right'] == 'closed' else self.open_pos['right']
             if verbose and i % 10 == 0:
                 print(f"[MOVE_AND_TILT_DUAL_SMOOTH] Step {i}/{n_steps}, q: {q}")
-            loop_elapsed = time.time() - loop_start
-            sleep_time = max(0, period - loop_elapsed)
-            time.sleep(sleep_time)
+            time.sleep(period)
 
         # Final convergence
         thresh = 0.3
